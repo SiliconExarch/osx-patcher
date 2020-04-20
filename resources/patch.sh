@@ -218,6 +218,29 @@ Check_Volume_Support()
 	fi
 }
 
+Input_Frameworks()
+{
+	if [[ $volume_version_short == "10.8" ]]; then
+		echo -e $(date "+%b %m %H:%M:%S") ${text_message}"/ Mountain Lion Install Detected"${erase_style}
+		echo -e $(date "+%b %m %H:%M:%S") ${text_message}"/ Would you like to patch the graphics frameworks?"${erase_style}
+		echo -e $(date "+%b %m %H:%M:%S") ${text_message}"/     1 - No (Default, safe)"${erase_style}
+		echo -e $(date "+%b %m %H:%M:%S") ${text_message}"/     2 - Patch frameworks for ATI (Minor issues)"${erase_style}
+		echo -e $(date "+%b %m %H:%M:%S") ${text_error}"/     3 - Patch frameworks for GMA (Major issues)"${erase_style}
+		Input_On
+		read -e -p "$(date "+%b %m %H:%M:%S") / " patch_frameworks
+		Input_Off
+		if [[ $patch_frameworks == "2" ]]; then
+			echo -e $(date "+%b %m %H:%M:%S") ${text_success}"+ Graphics frameworks will be patched for ATI."${erase_style}
+		elif [[ $patch_frameworks == "3" ]]; then
+			echo -e $(date "+%b %m %H:%M:%S") ${text_success}"+ Graphics frameworks will be patched for GMA."${erase_style}
+		else
+			echo -e $(date "+%b %m %H:%M:%S") ${text_success}"+ Graphics frameworks will not be patched."${erase_style}
+		fi
+	else
+		echo -e $(date "+%b %m %H:%M:%S") ${text_message}"+ Skipping 10.8 only graphics framework patch selection."${erase_style}
+	fi
+}
+
 Patch_Volume()
 {
 	echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching boot.efi."${erase_style}
@@ -309,8 +332,6 @@ Patch_Volume()
 	cp -R "$resources_path"/NVDAResmanG7xxx.kext "$volume_path"/System/Library/Extensions/
 	cp -R "$resources_path"/NVSMU.kext "$volume_path"/System/Library/Extensions/
 
-	Output_Off cp -R "$resources_path"/Brightness\ Slider.app "$volume_path"/Applications/Utilities
-
 	if [[ $volume_version_short == "10.8" ]]; then
 		cp -R "$resources_path"/1.3.3/NoSleep.kext "$volume_path"/System/Library/Extensions/
 		Output_Off cp -R "$resources_path"/1.3.3/NoSleep.app "$volume_path"/Applications/Utilities
@@ -320,7 +341,40 @@ Patch_Volume()
 		Output_Off cp -R "$resources_path"/NoSleep.app "$volume_path"/Applications/Utilities
 		Output_Off cp -R "$resources_path"/NoSleep.prefPane "$volume_path"/System/Library/PreferencePanes
 	fi
+
+	if [[ ! $patch_frameworks == "2" ]]; then
+		Output_Off cp -R "$resources_path"/Brightness\ Slider.app "$volume_path"/Applications/Utilities
+	fi
+
 	echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Patched graphics drivers."${erase_style}
+
+	if [[ $patch_frameworks == [2-3] ]]; then
+		echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Backing up/removing current graphics frameworks."${erase_style}
+		if [[ ! -d $volume_path"/System/Library/Frameworks.backup" ]]; then
+			mkdir "$volume_path"/System/Library/Frameworks.backup
+			mv "$volume_path"/System/Library/Frameworks/OpenCL.framework "$volume_path"/System/Library/Frameworks.backup/
+			mv "$volume_path"/System/Library/Frameworks/OpenGL.framework "$volume_path"/System/Library/Frameworks.backup/
+			echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Backed up current graphics frameworks."${erase_style}
+		else
+			Output_Off rm -R "$volume_path"/System/Library/Frameworks/OpenCL.framework
+			Output_Off rm -R "$volume_path"/System/Library/Frameworks/OpenGL.framework
+			echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Backup already exists. Removed current graphics frameworks."${erase_style}
+		fi
+	fi
+
+	if [[ $patch_frameworks == "2" ]]; then
+		echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching graphics frameworks (ATI)."${erase_style}
+		cp -R "$resources_path"/Frameworks/ATI/OpenCL.framework "$volume_path"/System/Library/Frameworks/
+		cp -R "$resources_path"/Frameworks/ATI/OpenGL.framework "$volume_path"/System/Library/Frameworks/
+		echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Patched graphics frameworks (ATI)."${erase_style}
+	fi
+
+	if [[ $patch_frameworks == "3" ]]; then
+		echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching graphics frameworks (GMA)."${erase_style}
+		cp -R "$resources_path"/Frameworks/GMA/OpenCL.framework "$volume_path"/System/Library/Frameworks/
+		cp -R "$resources_path"/Frameworks/GMA/OpenGL.framework "$volume_path"/System/Library/Frameworks/
+		echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Patched graphics frameworks (GMA)."${erase_style}
+	fi
 
 	echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching audio drivers."${erase_style}
 	cp -R "$resources_path"/AppleHDA.kext "$volume_path"/System/Library/Extensions/
@@ -330,12 +384,6 @@ Patch_Volume()
 	echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching platform support check."${erase_style}
 	Output_Off rm "$volume_path"/System/Library/CoreServices/PlatformSupport.plist
 	echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Patched platform support check."${erase_style}
-
-	if [[ $volume_version_short == "10.11" ]]; then
-		echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching kernel."${erase_style}
-		cp "$resources_path"/Kernels/"$volume_version_short"/kernel "$volume_path"/System/Library/Kernels
-		echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Patched kernel."${erase_style}
-	fi
 
 	echo -e $(date "+%b %m %H:%M:%S") ${text_progress}"> Patching kernel flags."${erase_style}
 	sed -i '' 's|<string></string>|<string>kext-dev-mode=1 mbasd=1</string>|' "$volume_path"/Library/Preferences/SystemConfiguration/com.apple.Boot.plist
@@ -408,10 +456,19 @@ Repair_Permissions()
 	Repair "$volume_path"/System/Library/Extensions/NVDAResmanG7xxx.kext
 	Repair "$volume_path"/System/Library/Extensions/NVSMU.kext
 
-	Repair "$volume_path"/Applications/Utilities/Brightness\ Slider.app
+	Repair "$volume_path"/System/Library/Extensions/NoSleep.kext
 	Repair "$volume_path"/Applications/Utilities/NoSleep.app
 	Repair "$volume_path"/System/Library/PreferencePanes/NoSleep.prefPane
-	
+
+	if [[ ! $patch_frameworks == "2" ]]; then
+		Repair "$volume_path"/Applications/Utilities/Brightness\ Slider.app
+	fi
+
+	if [[ $patch_frameworks == [2-3] ]]; then
+		Repair "$volume_path"/System/Library/Frameworks/OpenCL.framework
+		Repair "$volume_path"/System/Library/Frameworks/OpenGL.framework
+	fi
+
 	Repair "$volume_path"/System/Library/Extensions/AppleHDA.kext
 	Repair "$volume_path"/System/Library/Extensions/IOAudioFamily.kext
 	echo -e $(date "+%b %m %H:%M:%S") ${move_up}${erase_line}${text_success}"+ Repaired permissions."${erase_style}
@@ -472,6 +529,7 @@ Input_Model
 Input_Volume
 Check_Volume_Version
 Check_Volume_Support
+Input_Frameworks
 Patch_Volume
 Repair_Permissions
 Patch_Volume_Helpers
